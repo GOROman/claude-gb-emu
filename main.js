@@ -13,22 +13,21 @@ const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
 const imageData = ctx.createImageData(160, 144);
 const status = document.getElementById('status');
-const dropHint = document.getElementById('dropHint');
+const dropHint = document.getElementById('drop-hint');
 
 // ---------------------------------------------------------------- WASM init
 createGbModule().then((m) => {
   Module = m;
   Module._gb_init(44100);
-  status.textContent = 'ROMを読み込んでください';
   const params = new URLSearchParams(location.search);
   if (params.get('rom')) loadRomFromUrl(params.get('rom'));
 });
 
 // ---------------------------------------------------------------- audio
 async function initAudio() {
-  if (audioCtx) return;
+  if (audioCtx) { audioCtx.resume(); return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
-  Module._gb_init(audioCtx.sampleRate);
+  Module && Module._gb_init(audioCtx.sampleRate);
   try {
     await audioCtx.audioWorklet.addModule('audio-worklet.js?v=' + window.GB_VER);
     workletNode = new AudioWorkletNode(audioCtx, 'gb-audio', { outputChannelCount: [2] });
@@ -55,10 +54,17 @@ async function initAudio() {
       }
     };
   }
+  audioCtx.resume();
 }
 
+// audio can only start from a user gesture — arm it on the first one
+function armAudio() { initAudio(); }
+window.addEventListener('pointerdown', armAudio, { once: true });
+window.addEventListener('keydown', armAudio, { once: true });
+
 function pushAudio() {
-  if (!Module || muted) { Module && Module._gb_audio_clear(); return; }
+  if (!Module) return;
+  if (muted) { Module._gb_audio_clear(); return; }
   const n = Module._gb_audio_sample_count();
   if (n <= 0) return;
   const ptr = Module._gb_audio_buffer() >> 2;
@@ -100,18 +106,21 @@ async function loadRomFromUrl(url) {
   try {
     status.textContent = 'ダウンロード中…';
     const res = await fetch(url);
-    if (!res.ok) throw new Error(res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     loadRom(new Uint8Array(await res.arrayBuffer()), url.split('/').pop());
+    // reflect the ROM URL in the address bar so the link is shareable
+    const p = new URLSearchParams(location.search);
+    p.set('rom', url);
+    history.replaceState(null, '', '?' + p.toString());
   } catch (e) {
-    status.textContent = 'ROMの取得に失敗: ' + e;
+    status.textContent = 'ROMの取得に失敗: ' + (e.message || e);
   }
 }
 
-document.getElementById('romFile').addEventListener('change', async (e) => {
+document.getElementById('rom-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   await initAudio();
-  audioCtx && audioCtx.resume();
   loadRom(new Uint8Array(await file.arrayBuffer()), file.name);
   e.target.value = '';
 });
@@ -122,9 +131,26 @@ document.body.addEventListener('drop', async (e) => {
   const file = e.dataTransfer.files[0];
   if (!file) return;
   await initAudio();
-  audioCtx && audioCtx.resume();
   loadRom(new Uint8Array(await file.arrayBuffer()), file.name);
 });
+
+// URL load row
+document.getElementById('btn-url').addEventListener('click', () => {
+  document.body.classList.toggle('url-on');
+  if (document.body.classList.contains('url-on')) document.getElementById('url-input').focus();
+});
+async function loadFromUrlField() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+  await initAudio();
+  loadRomFromUrl(url);
+}
+document.getElementById('btn-url-load').addEventListener('click', loadFromUrlField);
+document.getElementById('url-input').addEventListener('keydown', (e) => {
+  e.stopPropagation();               // don't feed the emulator while typing
+  if (e.key === 'Enter') loadFromUrlField();
+});
+document.getElementById('url-input').addEventListener('keyup', (e) => e.stopPropagation());
 
 // ---------------------------------------------------------------- battery save
 function saveBattery() {
@@ -176,7 +202,7 @@ function pollGamepad() {
     let b = 0;
     const bt = gp.buttons;
     if (bt[0] && bt[0].pressed) b |= 0x10;         // A
-    if (bt[1] && bt[1].pressed) b |= 0x20;         // B (swap feel: 0=bottom)
+    if (bt[1] && bt[1].pressed) b |= 0x20;         // B
     if (bt[2] && bt[2].pressed) b |= 0x20;
     if (bt[8] && bt[8].pressed) b |= 0x40;         // select
     if (bt[9] && bt[9].pressed) b |= 0x80;         // start
@@ -195,32 +221,32 @@ function pollGamepad() {
   return 0;
 }
 
-// touch pad
-if ('ontouchstart' in window) document.body.classList.add('touch');
+// virtual pad
 let touchButtons = 0;
-for (const el of document.querySelectorAll('[data-btn]')) {
+for (const el of document.querySelectorAll('.pbtn')) {
   const bit = parseInt(el.dataset.btn, 10);
-  const press = (e) => { e.preventDefault(); touchButtons |= bit; el.classList.add('pressed'); };
-  const release = (e) => { e.preventDefault(); touchButtons &= ~bit; el.classList.remove('pressed'); };
-  el.addEventListener('touchstart', press, { passive: false });
-  el.addEventListener('touchend', release, { passive: false });
-  el.addEventListener('touchcancel', release, { passive: false });
+  const press = (e) => { e.preventDefault(); touchButtons |= bit; el.classList.add('active'); };
+  const release = (e) => { e.preventDefault(); touchButtons &= ~bit; el.classList.remove('active'); };
+  el.addEventListener('pointerdown', press);
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('pointerleave', release);
 }
 
 // ---------------------------------------------------------------- UI buttons
-document.getElementById('btnReset').addEventListener('click', () => {
+document.getElementById('btn-reset').addEventListener('click', () => {
   Module && Module._gb_reset();
 });
-document.getElementById('btnMute').addEventListener('click', (e) => {
+document.getElementById('btn-mute').addEventListener('click', (e) => {
   muted = !muted;
-  e.target.textContent = muted ? '🔇 Muted' : '🔊 Sound';
+  e.target.textContent = muted ? '🔇' : '🔊';
 });
 function toggleFullscreen() {
-  const wrap = document.getElementById('screenWrap');
+  const app = document.getElementById('app');
   if (document.fullscreenElement) document.exitFullscreen();
-  else wrap.requestFullscreen && wrap.requestFullscreen();
+  else app.requestFullscreen && app.requestFullscreen();
 }
-document.getElementById('btnFull').addEventListener('click', toggleFullscreen);
+document.getElementById('btn-full').addEventListener('click', toggleFullscreen);
 
 // ---------------------------------------------------------------- main loop
 const FRAME_MS = 1000 / 59.7275;
