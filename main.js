@@ -188,6 +188,7 @@ window.addEventListener('keydown', (e) => {
   if (b) { buttons |= b; e.preventDefault(); }
   if (e.code === 'KeyR') Module && Module._gb_reset();
   if (e.code === 'KeyF') toggleFullscreen();
+  if (e.code === 'KeyD') toggleDebug();
 });
 window.addEventListener('keyup', (e) => {
   const b = KEYMAP[e.code];
@@ -241,6 +242,78 @@ document.getElementById('btn-mute').addEventListener('click', (e) => {
   muted = !muted;
   e.target.textContent = muted ? '🔇' : '🔊';
 });
+// ---------------------------------------------------------------- debug panel
+const dbgCpu = document.getElementById('dbg-cpu');
+const dbgApu = document.getElementById('dbg-apu');
+const dbgMem = document.getElementById('dbg-mem');
+const dbgAddr = document.getElementById('dbg-addr');
+
+function toggleDebug() {
+  document.body.classList.toggle('debug-on');
+  updateDebug();
+}
+document.getElementById('btn-debug').addEventListener('click', toggleDebug);
+dbgAddr.addEventListener('keydown', (e) => e.stopPropagation());
+dbgAddr.addEventListener('keyup', (e) => e.stopPropagation());
+for (const el of document.querySelectorAll('.dbg-jump')) {
+  el.addEventListener('click', () => { dbgAddr.value = el.dataset.addr; updateDebug(); });
+}
+
+const hex2 = (v) => v.toString(16).toUpperCase().padStart(2, '0');
+const hex4 = (v) => v.toString(16).toUpperCase().padStart(4, '0');
+
+const APU_NAMES = [
+  'NR10', 'NR11', 'NR12', 'NR13', 'NR14', '----', 'NR21', 'NR22', 'NR23', 'NR24',
+  'NR30', 'NR31', 'NR32', 'NR33', 'NR34', '----', 'NR41', 'NR42', 'NR43', 'NR44',
+  'NR50', 'NR51', 'NR52',
+];
+
+function updateDebug() {
+  if (!Module || !document.body.classList.contains('debug-on')) return;
+  // CPU
+  const r = Module._gb_cpu_regs();
+  const m = Module.HEAPU8.subarray(r, r + 20);
+  const pc = m[0] | (m[1] << 8), sp = m[2] | (m[3] << 8);
+  const f = m[5];
+  const flags = ((f & 0x80) ? 'Z' : '-') + ((f & 0x40) ? 'N' : '-') +
+                ((f & 0x20) ? 'H' : '-') + ((f & 0x10) ? 'C' : '-');
+  const frameCount = m[16] | (m[17] << 8) | (m[18] << 16) | (m[19] << 24);
+  dbgCpu.textContent =
+    `PC=${hex4(pc)}  SP=${hex4(sp)}\n` +
+    `A=${hex2(m[4])}  F=${flags}\n` +
+    `BC=${hex2(m[6])}${hex2(m[7])}  DE=${hex2(m[8])}${hex2(m[9])}  HL=${hex2(m[10])}${hex2(m[11])}\n` +
+    `IME=${m[12]} HALT=${m[13]} SPEED=${m[14] ? '2x' : '1x'} ${m[15] ? 'CGB' : 'DMG'}\n` +
+    `FRAME=${frameCount >>> 0}`;
+  // APU (FF10-FF26 + wave RAM)
+  const a = Module._gb_apu_regs();
+  const ar = Module.HEAPU8.subarray(a, a + 0x30);
+  let apuText = '';
+  for (let i = 0; i <= 0x16; i++) {
+    apuText += `${APU_NAMES[i]} FF${hex2(0x10 + i)}=${hex2(ar[i])}` + ((i % 2 === 0) ? '  ' : '\n');
+  }
+  apuText += '\nWAVE ';
+  for (let i = 0x20; i < 0x30; i++) apuText += hex2(ar[i]);
+  dbgApu.textContent = apuText;
+  // memory dump: 16 lines x 16 bytes
+  let base = parseInt(dbgAddr.value, 16);
+  if (isNaN(base)) base = 0xC000;
+  base = Math.max(0, Math.min(0xFF00, base & 0xFFF0));
+  let memText = '';
+  for (let row = 0; row < 16; row++) {
+    const addr = base + row * 16;
+    memText += hex4(addr) + ':';
+    let ascii = '';
+    for (let i = 0; i < 16; i++) {
+      const v = Module._gb_peek(addr + i);
+      memText += ' ' + hex2(v);
+      ascii += (v >= 0x20 && v < 0x7F) ? String.fromCharCode(v) : '.';
+    }
+    memText += '  ' + ascii + '\n';
+  }
+  dbgMem.textContent = memText;
+}
+setInterval(updateDebug, 250);   // keeps the panel fresh while paused too
+
 function toggleFullscreen() {
   const app = document.getElementById('app');
   if (document.fullscreenElement) document.exitFullscreen();
