@@ -252,6 +252,13 @@ for (const el of document.querySelectorAll('.pbtn')) {
 document.getElementById('btn-reset').addEventListener('click', () => {
   Module && Module._gb_reset();
 });
+document.getElementById('btn-fm').addEventListener('click', (e) => {
+  if (!Module) return;
+  const on = !Module._gb_get_fm();
+  Module._gb_set_fm(on ? 1 : 0);
+  e.target.classList.toggle('fm-on', on);
+  e.target.textContent = on ? 'FM ♪' : 'FM';
+});
 document.getElementById('btn-mute').addEventListener('click', (e) => {
   muted = !muted;
   e.target.textContent = muted ? '🔇' : '🔊';

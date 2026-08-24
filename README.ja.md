@@ -16,6 +16,7 @@
 - **APU** — パルス×2 + 波形 + ノイズの4ch。スイープ・エンベロープ・長さカウンタ対応。AudioWorklet 出力(非 HTTPS では ScriptProcessor にフォールバック)
 - **MBC** — なし / MBC1 / MBC2 / MBC3(+RTC) / MBC5
 - **CGB 機能** — 倍速モード (KEY1)、HDMA(汎用 / HBlank)、WRAM/VRAM バンク切り替え
+- **Chromatic FM 拡張**(FM ボタン)— [ModRetro Chromatic](https://github.com/ModRetro/oss-chromatic-console-fpga) の YM2151 + MSM6258 ADPCM 拡張($FF28-$FF2F)をエミュレート(YM2151 は [ymfm](https://github.com/aaronsgiles/ymfm)、BSD-3-Clause)。対応 ROM 用。FM ボタンで ON/OFF
 - バッテリーバックアップ SRAM は localStorage に自動保存
 
 ### フロントエンド

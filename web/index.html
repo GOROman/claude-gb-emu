@@ -64,6 +64,10 @@
     box-shadow: 0 2px 0 var(--gb-purple-dark);
   }
   #toolbar button:active, #toolbar label.btn:active { transform: translateY(2px); box-shadow: none; }
+  #btn-fm.fm-on {
+    background: #2e7d32;
+    box-shadow: 0 2px 0 #1b4d1e;
+  }
   #url-row {
     display: none;
     gap: 6px;
@@ -319,6 +323,7 @@
     <button id="btn-url">URL</button>
     <button id="btn-reset">リセット</button>
     <button id="btn-mute">🔊</button>
+    <button id="btn-fm" title="Chromatic FM拡張 (YM2151 + ADPCM)">FM</button>
     <button id="btn-debug">DEBUG</button>
     <button id="btn-full">⛶</button>
     <span id="status">.gb / .gbc ファイルを選択してください</span>
@@ -348,6 +353,8 @@
       <p>🎮 USB / Bluetooth ゲームパッド対応 (Gamepad API)。接続して何かボタンを押すと認識されます。</p>
       <h3>セーブ</h3>
       <p>バッテリーバックアップ付きカートリッジのセーブデータはブラウザ (localStorage) に自動保存されます。</p>
+      <h3>FM拡張</h3>
+      <p>FM ボタンで ModRetro Chromatic の FM 音源拡張 (YM2151 + ADPCM、$FF28-$FF2F) を有効化。対応 ROM 専用です。</p>
     </div>
     <div id="screen-wrap">
       <canvas id="screen" width="160" height="144"></canvas>
@@ -374,8 +381,8 @@
     <div class="pbtn" id="btn-vstart" data-btn="128">START</div>
   </div>
 </div>
-<script>window.GB_VER='1787541134';</script>
-<script src="gbc.js?v=1787541134"></script>
-<script src="main.js?v=1787541134"></script>
+<script>window.GB_VER='1787544184';</script>
+<script src="gbc.js?v=1787544184"></script>
+<script src="main.js?v=1787544184"></script>
 </body>
 </html>

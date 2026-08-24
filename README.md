@@ -16,6 +16,7 @@ Open a .gb / .gbc file with "Open ROM" or drop it onto the screen. The "URL" but
 - **APU** — 4 channels (2 pulse + wave + noise) with sweep, envelope and length counters. AudioWorklet output (falls back to ScriptProcessor on non-HTTPS origins)
 - **MBC** — none / MBC1 / MBC2 / MBC3 (+RTC) / MBC5
 - **CGB features** — double speed mode (KEY1), HDMA (general / HBlank), WRAM/VRAM banking
+- **Chromatic FM expansion** (FM button) — emulates the [ModRetro Chromatic](https://github.com/ModRetro/oss-chromatic-console-fpga) YM2151 + MSM6258 ADPCM extension mapped at $FF28-$FF2F (YM2151 via [ymfm](https://github.com/aaronsgiles/ymfm), BSD-3-Clause). For ROMs written for that hardware; toggled with the FM button
 - Battery-backed SRAM is saved to localStorage automatically
 
 ### Frontend

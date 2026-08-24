@@ -31,6 +31,7 @@ void GB::reset() {
     hdmaActive = false; hdmaLen = 0;
     hdmaSrcH = hdmaSrcL = hdmaDstH = hdmaDstL = 0;
     cart.ramEnable = false;
+    fm.reset();                    // keeps fm.enabled as set by the FM button
 }
 
 uint8_t GB::joypRead() {
@@ -69,6 +70,7 @@ void GB::write(uint16_t addr, uint8_t v) {
 }
 
 uint8_t GB::readIO(uint8_t reg) {
+    if (fm.enabled && reg >= 0x28 && reg <= 0x2F) return fm.read(reg - 0x28);
     switch (reg) {
     case 0x00: return joypRead();
     case 0x01: return sb;
@@ -112,6 +114,7 @@ uint8_t GB::readIO(uint8_t reg) {
 }
 
 void GB::writeIO(uint8_t reg, uint8_t v) {
+    if (fm.enabled && reg >= 0x28 && reg <= 0x2F) { fm.write(reg - 0x28, v); return; }
     switch (reg) {
     case 0x00: joyp = (joyp & 0xCF) | (v & 0x30); return;
     case 0x01: sb = v; return;
@@ -305,6 +308,16 @@ API int gb_sram_size() { return g_gb ? (int)g_gb->cart.ram.size() : 0; }
 API int gb_has_battery() { return (g_gb && g_gb->cart.battery) ? 1 : 0; }
 API int gb_is_cgb() { return (g_gb && g_gb->cgb) ? 1 : 0; }
 API uint32_t gb_frame_count() { return g_gb ? g_gb->ppu.frameCount : 0; }
+
+API void gb_set_fm(int on) {
+    if (!g_gb) return;
+    bool en = on != 0;
+    if (en != g_gb->fm.enabled) {
+        g_gb->fm.enabled = en;
+        g_gb->fm.reset();
+    }
+}
+API int gb_get_fm() { return (g_gb && g_gb->fm.enabled) ? 1 : 0; }
 
 // ---- debug ----
 

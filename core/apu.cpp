@@ -194,8 +194,18 @@ void APU::mixSample() {
     }
     L *= (((nr50 >> 4) & 7) + 1) / 8.f;
     R *= ((nr50 & 7) + 1) / 8.f;
-    sampleBuf[sampleCount * 2] = L * 0.22f;
-    sampleBuf[sampleCount * 2 + 1] = R * 0.22f;
+    L *= 0.22f;
+    R *= 0.22f;
+    // Chromatic FM expansion: YM2151 + ADPCM mixed in, GB APU gated by FF2B
+    ChromaticFM& fm = gb->fm;
+    if (fm.enabled) {
+        fm.generateSample(sampleRate);
+        if (!(fm.audioControl & 0x02)) { L = 0; R = 0; }   // GB APU disabled
+        if (fm.audioControl & 0x01) { L += fm.ymL; R += fm.ymR; }
+        if (fm.audioControl & 0x04) { L += fm.adpcmOut * 0.5f; R += fm.adpcmOut * 0.5f; }
+    }
+    sampleBuf[sampleCount * 2] = L;
+    sampleBuf[sampleCount * 2 + 1] = R;
     sampleCount++;
 }
 

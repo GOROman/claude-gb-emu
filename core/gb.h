@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include "chromatic.h"
 
 namespace gb {
 
@@ -133,6 +134,7 @@ struct GB {
     PPU ppu;
     APU apu;
     Cartridge cart;
+    ChromaticFM fm;
     bool cgb = false;              // running in CGB mode
     bool doubleSpeed = false;
     uint8_t key1 = 0;

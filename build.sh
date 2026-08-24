@@ -13,7 +13,7 @@ if [ -d /opt/homebrew/opt/emscripten/libexec/llvm/bin ]; then
 fi
 
 emcc -O3 -std=c++17 \
-  core/cpu.cpp core/ppu.cpp core/apu.cpp core/cartridge.cpp core/gb.cpp \
+  core/cpu.cpp core/ppu.cpp core/apu.cpp core/cartridge.cpp core/gb.cpp core/chromatic.cpp core/ymfm/ymfm_opm.cpp \
   -o web/gbc.js \
   -sMODULARIZE=1 \
   -sEXPORT_NAME=createGbModule \
