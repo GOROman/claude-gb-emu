@@ -4,7 +4,9 @@
 
 A Game Boy / Game Boy Color emulator that runs in the browser. The core is written in C++ and compiled to WebAssembly with Emscripten.
 
-「Open ROM」から .gb / .gbc ファイルを開くか、画面にドロップしてください。
+**▶ Play: https://goroman.github.io/claude-gb-emu/**
+
+「ROMを開く」から .gb / .gbc ファイルを開くか、画面にドロップしてください。「URL」ボタンで ROM の URL を直接指定することもできます(`?rom=<URL>` パラメータにも対応、CORS 許可が必要)。
 
 ## Features
 
@@ -33,6 +35,17 @@ A Game Boy / Game Boy Color emulator that runs in the browser. The core is writt
 ```sh
 cd web && python3 -m http.server 8080
 # → http://localhost:8080/
+```
+
+## Deploy (GitHub Pages)
+
+`gh-pages` ブランチに `web/` の内容を置いて配信しています。更新は:
+
+```sh
+./build.sh
+git subtree split --prefix web -b gh-pages-tmp
+git push -f origin gh-pages-tmp:gh-pages
+git branch -D gh-pages-tmp
 ```
 
 ## Structure
