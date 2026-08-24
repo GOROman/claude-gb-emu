@@ -197,9 +197,10 @@ void APU::mixSample() {
     L *= 0.22f;
     R *= 0.22f;
     // Chromatic FM expansion: YM2151 + ADPCM mixed in, GB APU gated by FF2B.
-    // Makeup gains bring the expansion up to GB APU loudness: the RTL-faithful
-    // (x*$80)>>10 scaling tops out at 0.125 FS, well below the APU channels.
-    const float FM_GAIN = 4.0f, ADPCM_GAIN = 2.0f;
+    // Makeup gains reproduce the FPGA mixer ratio: there the GB APU tops out
+    // around +-8160 while YM/ADPCM top out at +-4095 (half of the APU), so both
+    // get the same x4 gain, putting their 0.125 FS peaks at 0.5 vs the APU's 0.88.
+    const float FM_GAIN = 4.0f, ADPCM_GAIN = 4.0f;
     ChromaticFM& fm = gb->fm;
     if (fm.enabled) {
         fm.generateSample(sampleRate);
