@@ -122,15 +122,103 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  #mid {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
   #screen-wrap {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 0;
+    min-width: 0;
     background: #000;
     position: relative;
   }
+  /* left: controls help */
+  #help {
+    width: min(230px, 24vw);
+    flex-shrink: 0;
+    overflow: auto;
+    background: #161616;
+    color: #cfc9b8;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px;
+  }
+  #help h3 {
+    color: #ddd;
+    font-size: 12px;
+    margin: 8px 0 3px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 2px;
+  }
+  #help h3:first-child { margin-top: 0; }
+  #help table { border-collapse: collapse; width: 100%; }
+  #help td { padding: 1px 0; vertical-align: top; }
+  #help td:first-child { width: 74px; }
+  #help kbd {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0 5px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: #eee;
+    white-space: nowrap;
+  }
+  #help p { margin: 2px 0; color: #9a937f; }
+  @media (max-width: 900px), (pointer: coarse) { #help { display: none; } }
+  /* right: debug panel */
+  #debug {
+    display: none;
+    width: min(330px, 40vw);
+    flex-shrink: 0;
+    overflow: auto;
+    background: #161616;
+    color: #9fdf9f;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.35;
+    padding: 8px;
+    white-space: pre;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  body.debug-on #debug { display: block; }
+  #debug h3 {
+    color: #ddd;
+    font-size: 12px;
+    margin: 8px 0 2px;
+    font-family: system-ui, sans-serif;
+  }
+  #debug h3:first-child { margin-top: 0; }
+  #debug .reg-name { color: #6a9a6a; }
+  #dbg-addr {
+    width: 46px;
+    background: #000;
+    color: #FFD37A;
+    border: 1px solid #888;
+    font: inherit;
+    font-family: ui-monospace, Menlo, monospace;
+    text-transform: uppercase;
+    padding: 0 3px;
+  }
+  .dbg-jump {
+    background: #2a2a2a;
+    color: #9fdf9f;
+    border: 1px solid #444;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: ui-monospace, Menlo, monospace;
+    padding: 1px 4px;
+    cursor: pointer;
+    margin-left: 2px;
+  }
+  .dbg-jump:hover { background: #333; }
   canvas#screen {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
@@ -231,6 +319,7 @@
     <button id="btn-url">URL</button>
     <button id="btn-reset">リセット</button>
     <button id="btn-mute">🔊</button>
+    <button id="btn-debug">DEBUG</button>
     <button id="btn-full">⛶</button>
     <span id="status">.gb / .gbc ファイルを選択してください</span>
     <a class="ext-link" href="https://x.com/GOROman" target="_blank" rel="noopener" title="X (@GOROman)">𝕏</a>
@@ -240,11 +329,40 @@
     <input type="text" id="url-input" placeholder="https://example.com/game.gbc (CORS許可が必要)" inputmode="url">
     <button id="btn-url-load">ロード</button>
   </div>
-  <div id="screen-wrap">
-    <canvas id="screen" width="160" height="144"></canvas>
-    <div id="drop-hint">.gb / .gbc ファイルをドロップ<br>または「ROMを開く」</div>
+  <div id="mid">
+    <div id="help">
+      <h3>ROMの読み込み</h3>
+      <p>「ROMを開く」で .gb / .gbc を選択、または画面へドロップ。「URL」で ROM の URL 指定も可(CORS 許可が必要)。</p>
+      <h3>キーボード</h3>
+      <table>
+        <tr><td>十字キー</td><td><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd></td></tr>
+        <tr><td>A</td><td><kbd>X</kbd></td></tr>
+        <tr><td>B</td><td><kbd>Z</kbd></td></tr>
+        <tr><td>START</td><td><kbd>Enter</kbd></td></tr>
+        <tr><td>SELECT</td><td><kbd>Shift</kbd></td></tr>
+        <tr><td>リセット</td><td><kbd>R</kbd></td></tr>
+        <tr><td>フルスクリーン</td><td><kbd>F</kbd></td></tr>
+        <tr><td>デバッグ</td><td><kbd>D</kbd></td></tr>
+      </table>
+      <h3>ゲームパッド</h3>
+      <p>🎮 USB / Bluetooth ゲームパッド対応 (Gamepad API)。接続して何かボタンを押すと認識されます。</p>
+      <h3>セーブ</h3>
+      <p>バッテリーバックアップ付きカートリッジのセーブデータはブラウザ (localStorage) に自動保存されます。</p>
+    </div>
+    <div id="screen-wrap">
+      <canvas id="screen" width="160" height="144"></canvas>
+      <div id="drop-hint">.gb / .gbc ファイルをドロップ<br>または「ROMを開く」</div>
+    </div>
+    <div id="debug">
+      <h3>CPU</h3>
+      <div id="dbg-cpu"></div>
+      <h3>APU</h3>
+      <div id="dbg-apu"></div>
+      <h3>MEM <input id="dbg-addr" value="C000" maxlength="4" inputmode="text">
+        <button class="dbg-jump" data-addr="0000">ROM</button><button class="dbg-jump" data-addr="8000">VRAM</button><button class="dbg-jump" data-addr="A000">SRAM</button><button class="dbg-jump" data-addr="C000">WRAM</button><button class="dbg-jump" data-addr="FE00">OAM</button><button class="dbg-jump" data-addr="FF80">HRAM</button></h3>
+      <div id="dbg-mem"></div>
+    </div>
   </div>
-  <div id="keys-hint">⌨ 十字キー: 矢印 / A: X / B: Z / START: Enter / SELECT: Shift / R: リセット / F: フルスクリーン ・ 🎮 ゲームパッド対応</div>
   <div id="pad">
     <div class="pbtn" id="btn-up" data-btn="4">▲</div>
     <div class="pbtn" id="btn-down" data-btn="8">▼</div>
@@ -256,8 +374,8 @@
     <div class="pbtn" id="btn-vstart" data-btn="128">START</div>
   </div>
 </div>
-<script>window.GB_VER='1787533825';</script>
-<script src="gbc.js?v=1787533825"></script>
-<script src="main.js?v=1787533825"></script>
+<script>window.GB_VER='1787536779';</script>
+<script src="gbc.js?v=1787536779"></script>
+<script src="main.js?v=1787536779"></script>
 </body>
 </html>

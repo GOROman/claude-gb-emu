@@ -306,6 +306,45 @@ API int gb_has_battery() { return (g_gb && g_gb->cart.battery) ? 1 : 0; }
 API int gb_is_cgb() { return (g_gb && g_gb->cgb) ? 1 : 0; }
 API uint32_t gb_frame_count() { return g_gb ? g_gb->ppu.frameCount : 0; }
 
+// ---- debug ----
+
+// side-effect-free memory read for the debugger (reads in this core have no
+// side effects, so the normal bus read is safe to reuse)
+API int gb_peek(int addr) {
+    return (g_gb && g_gb->loaded) ? g_gb->read((uint16_t)addr) : 0xFF;
+}
+
+// packed CPU/system state:
+// [0]PC.l [1]PC.h [2]SP.l [3]SP.h [4]A [5]F [6]B [7]C [8]D [9]E [10]H [11]L
+// [12]IME [13]halted [14]doubleSpeed [15]cgb [16..19]frameCount
+static uint8_t g_cpuRegs[20];
+API uint8_t* gb_cpu_regs() {
+    if (!g_gb) { memset(g_cpuRegs, 0, sizeof(g_cpuRegs)); return g_cpuRegs; }
+    const auto& c = g_gb->cpu;
+    g_cpuRegs[0] = c.pc & 0xFF; g_cpuRegs[1] = c.pc >> 8;
+    g_cpuRegs[2] = c.sp & 0xFF; g_cpuRegs[3] = c.sp >> 8;
+    g_cpuRegs[4] = c.a; g_cpuRegs[5] = c.f;
+    g_cpuRegs[6] = c.b; g_cpuRegs[7] = c.c;
+    g_cpuRegs[8] = c.d; g_cpuRegs[9] = c.e;
+    g_cpuRegs[10] = c.h; g_cpuRegs[11] = c.l;
+    g_cpuRegs[12] = c.ime ? 1 : 0;
+    g_cpuRegs[13] = c.halted ? 1 : 0;
+    g_cpuRegs[14] = g_gb->doubleSpeed ? 1 : 0;
+    g_cpuRegs[15] = g_gb->cgb ? 1 : 0;
+    uint32_t fc = g_gb->ppu.frameCount;
+    g_cpuRegs[16] = fc & 0xFF; g_cpuRegs[17] = (fc >> 8) & 0xFF;
+    g_cpuRegs[18] = (fc >> 16) & 0xFF; g_cpuRegs[19] = (fc >> 24) & 0xFF;
+    return g_cpuRegs;
+}
+
+// APU registers FF10-FF3F as the CPU would read them (incl. wave RAM)
+static uint8_t g_apuRegs[0x30];
+API uint8_t* gb_apu_regs() {
+    if (!g_gb) { memset(g_apuRegs, 0xFF, sizeof(g_apuRegs)); return g_apuRegs; }
+    for (int i = 0; i < 0x30; i++) g_apuRegs[i] = g_gb->apu.read(i);
+    return g_apuRegs;
+}
+
 // ROM title (up to 16 chars, NUL-terminated)
 static char g_title[17];
 API const char* gb_rom_title() {
