@@ -93,7 +93,7 @@ uint8_t ChromaticFM::read(uint8_t reg) {
     case 4: return volumeLeft;
     case 5: return volumeRight;
     case 6: return 0x51;               // expansion ID
-    case 7: return 0x03;               // status-map version
+    case 7: return 0x04;               // version (dedicated ADPCM port)
     default: return 0xFF;              // FF29 is write-only
     }
 }
@@ -102,27 +102,25 @@ void ChromaticFM::write(uint8_t reg, uint8_t v) {
     switch (reg) {
     case 0:
         ymAddrLatch = v;
-        if (v == 0xFE) adpcmStart();
-        else if (v == 0xFD) adpcmStop();
         break;
-    case 1:
-        if (ymAddrLatch == 0xFF) {
-            if (fifoCount < 256) {
-                fifo[fifoWr] = v;
-                fifoWr = (fifoWr + 1) & 0xFF;
-                fifoCount++;
-            }
-        } else if (ymAddrLatch == 0xFE) adpcmStart();
-        else if (ymAddrLatch == 0xFD) adpcmStop();
-        else {
-            OpmWrap* w = static_cast<OpmWrap*>(opm);
-            if (w) {
-                w->chip.write_address(ymAddrLatch);
-                w->chip.write_data(v);
-            }
+    case 1: {
+        OpmWrap* w = static_cast<OpmWrap*>(opm);
+        if (w) {
+            w->chip.write_address(ymAddrLatch);
+            w->chip.write_data(v);
+        }
+        break; }
+    case 2:                            // FF2A write: ADPCM FIFO data port
+        if (fifoCount < 256) {
+            fifo[fifoWr] = v;
+            fifoWr = (fifoWr + 1) & 0xFF;
+            fifoCount++;
         }
         break;
     case 3:
+        // bit3 edge controls playback: 0->1 start, 1->0 stop
+        if (!(audioControl & 0x08) && (v & 0x08)) adpcmStart();
+        else if ((audioControl & 0x08) && !(v & 0x08)) adpcmStop();
         audioControl = v;
         adpcmVolume = v >> 4;
         break;

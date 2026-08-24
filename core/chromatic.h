@@ -1,12 +1,14 @@
 // ModRetro Chromatic FM expansion: YM2151 + MSM6258 ADPCM at $FF28-$FF2F.
 // Register map follows oss-chromatic-console-fpga chromatic_fm_io.v:
-//   FF28  YM address latch (write; $FE=ADPCM start, $FD=ADPCM stop commands)
-//   FF29  data (latch $FF -> ADPCM FIFO byte, else YM2151 register write)
-//   FF2A  status: bit7 YM busy, bit6 ADPCM FIFO ready, bit5 ADPCM playing
+//   FF28  YM2151 address latch
+//   FF29  YM2151 data (write-only; performs the register write)
+//   FF2A  read: status (bit7 YM busy, bit6 ADPCM FIFO ready, bit5 playing)
+//         write: ADPCM FIFO data byte (accepted only while the FIFO is ready)
 //   FF2B  control: bit0 YM enable, bit1 GB APU enable, bit2 ADPCM enable,
+//         bit3 ADPCM playback by edge (0->1 start, 1->0 stop),
 //         bits7:4 ADPCM volume
 //   FF2C/FF2D  YM left/right volume ($80 = reference level)
-//   FF2E  expansion ID $51,  FF2F  status-map version $03
+//   FF2E  expansion ID $51,  FF2F  version $04 (dedicated ADPCM port)
 #pragma once
 #include <cstdint>
 
