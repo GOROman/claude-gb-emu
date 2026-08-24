@@ -1,107 +1,263 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Game Boy Color Emulator (WASM)</title>
 <style>
   :root {
-    --bg: #1a1a22;
-    --panel: #26262f;
-    --fg: #e8e8f0;
-    --accent: #7b68ee;
+    --gb-cream: #E9E1D0;     /* トップパネル */
+    --gb-purple: #4F43AE;    /* GBC アトミックパープル */
+    --gb-purple-dark: #37307C;
+    --gb-btn: #B03060;       /* A/B ボタンのマゼンタ */
+    --gb-btn-dark: #7A1F42;
+    --gb-dark: #24222B;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font-family: -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
-    display: flex; flex-direction: column; align-items: center;
-    min-height: 100vh; padding: 12px;
-    touch-action: manipulation;
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #111;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
-  h1 { font-size: 16px; font-weight: 600; margin: 4px 0 10px; letter-spacing: .05em; }
-  h1 .cgb { color: var(--accent); }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #111;
+  }
+  #app:fullscreen { background: #000; }
   #toolbar {
-    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    background: var(--gb-cream);
+    border-bottom: 4px solid var(--gb-purple);
+    flex-wrap: wrap;
   }
-  button, label.btn {
-    background: var(--panel); color: var(--fg); border: 1px solid #3a3a48;
-    border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+  #toolbar label.btn {
+    background: var(--gb-purple);
+    color: var(--gb-cream);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 0 var(--gb-purple-dark);
   }
-  button:hover, label.btn:hover { border-color: var(--accent); }
-  button:active { transform: translateY(1px); }
-  #screenWrap {
-    background: #000; border: 4px solid #333; border-radius: 8px;
-    line-height: 0; position: relative;
+  #toolbar input[type=file] { display: none; }
+  #toolbar button {
+    background: var(--gb-purple);
+    color: var(--gb-cream);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--gb-purple-dark);
+  }
+  #toolbar button:active, #toolbar label.btn:active { transform: translateY(2px); box-shadow: none; }
+  #url-row {
+    display: none;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 8px;
+    background: var(--gb-cream);
+    border-bottom: 4px solid var(--gb-purple);
+  }
+  body.url-on #url-row { display: flex; }
+  #url-input {
+    flex: 1;
+    border: 1px solid var(--gb-purple-dark);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: ui-monospace, Menlo, monospace;
+    background: #fff;
+    color: #222;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #url-row button {
+    background: var(--gb-purple);
+    color: var(--gb-cream);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--gb-purple-dark);
+  }
+  #url-row button:active { transform: translateY(2px); box-shadow: none; }
+  .ext-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: var(--gb-purple);
+    color: var(--gb-cream);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: bold;
+    box-shadow: 0 2px 0 var(--gb-purple-dark);
+  }
+  .ext-link:active { transform: translateY(2px); box-shadow: none; }
+  #status {
+    font-size: 12px;
+    color: var(--gb-purple-dark);
+    font-weight: bold;
+    flex: 1 1 120px;
+    min-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #screen-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    background: #000;
+    position: relative;
   }
   canvas#screen {
-    width: min(480px, 92vw);
-    aspect-ratio: 160 / 144;
     image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    object-fit: contain;
   }
-  #dropHint {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #888; font-size: 14px; text-align: center; line-height: 1.6; pointer-events: none;
+  #drop-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #777;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.7;
+    pointer-events: none;
   }
-  #status { font-size: 12px; color: #999; margin-top: 8px; min-height: 1.2em; }
-  #keys { font-size: 11px; color: #777; margin-top: 4px; }
-  /* touch pad */
-  #touchpad {
-    display: none; width: 100%; max-width: 480px; margin-top: 14px;
-    justify-content: space-between; align-items: center; user-select: none;
-    -webkit-user-select: none;
+  #keys-hint {
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    padding: 4px;
+    background: #000;
   }
-  body.touch #touchpad { display: flex; }
-  #dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); }
-  .dbtn, .abtn, .sbtn {
-    background: var(--panel); border: 1px solid #3a3a48; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; color: #bbb;
+  @media (pointer: coarse) { #keys-hint { display: none; } }
+  /* virtual pad */
+  #pad {
+    display: none;
+    position: relative;
+    height: 210px;
+    background: var(--gb-purple);
+    border-top: 6px solid var(--gb-purple-dark);
+    flex-shrink: 0;
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .dbtn:active, .abtn:active, .sbtn:active, .pressed { background: var(--accent); color: #fff; }
-  #abgroup { display: flex; gap: 14px; }
-  .abtn { width: 58px; height: 58px; border-radius: 50%; font-weight: 700; }
-  #ssgroup { display: flex; gap: 10px; margin-top: 10px; justify-content: center; }
-  .sbtn { padding: 6px 18px; font-size: 12px; border-radius: 14px; }
+  @media (pointer: coarse) {
+    #pad { display: block; }
+  }
+  @media (max-width: 600px) {
+    #toolbar { gap: 4px; padding: 4px; border-bottom-width: 2px; }
+    #toolbar button, #toolbar label.btn {
+      font-size: 10px;
+      padding: 4px 7px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.3);
+    }
+    #status { font-size: 10px; }
+    #url-row { padding: 4px; border-bottom-width: 2px; }
+    #url-input { font-size: 11px; padding: 4px 6px; }
+    #url-row button { font-size: 10px; padding: 5px 8px; }
+  }
+  .pbtn {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gb-dark);
+    border-radius: 8px;
+    color: var(--gb-cream);
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+  }
+  .pbtn.active { background: var(--gb-purple-dark); box-shadow: none; transform: translateY(2px); }
+  #btn-a, #btn-b {
+    background: var(--gb-btn);
+    color: var(--gb-cream);
+    box-shadow: 0 3px 0 var(--gb-btn-dark);
+  }
+  #btn-a.active, #btn-b.active { background: var(--gb-btn-dark); }
+  #btn-vselect, #btn-vstart {
+    background: #6E6880;
+    color: var(--gb-cream);
+    font-size: 11px;
+    box-shadow: 0 2px 0 #4A4558;
+    transform: rotate(-25deg);
+  }
+  #btn-vselect.active, #btn-vstart.active { background: #4A4558; transform: rotate(-25deg) translateY(2px); }
+  /* d-pad: 3x3 grid at left */
+  #btn-up    { left: 68px;  bottom: 128px; width: 52px; height: 52px; }
+  #btn-down  { left: 68px;  bottom: 24px;  width: 52px; height: 52px; }
+  #btn-left  { left: 16px;  bottom: 76px;  width: 52px; height: 52px; }
+  #btn-right { left: 120px; bottom: 76px;  width: 52px; height: 52px; }
+  /* A/B at right */
+  #btn-b { right: 96px; bottom: 56px; width: 64px; height: 64px; border-radius: 50%; }
+  #btn-a { right: 16px; bottom: 88px; width: 64px; height: 64px; border-radius: 50%; }
+  /* select/start center */
+  #btn-vselect { left: 50%; transform: translateX(-110%) rotate(-25deg); bottom: 16px; width: 72px; height: 26px; border-radius: 13px; }
+  #btn-vstart  { left: 50%; transform: translateX(10%) rotate(-25deg);  bottom: 16px; width: 72px; height: 26px; border-radius: 13px; }
 </style>
 </head>
 <body>
-<h1>GAME BOY <span class="cgb">COLOR</span> — WASM Emulator</h1>
-
-<div id="toolbar">
-  <label class="btn">Open ROM<input type="file" id="romFile" accept=".gb,.gbc,.bin" style="display:none"></label>
-  <button id="btnReset">Reset</button>
-  <button id="btnMute">🔊 Sound</button>
-  <button id="btnFull">⛶ Fullscreen</button>
-</div>
-
-<div id="screenWrap">
-  <canvas id="screen" width="160" height="144"></canvas>
-  <div id="dropHint">.gb / .gbc ファイルを<br>ドロップ or「Open ROM」</div>
-</div>
-<div id="status"></div>
-<div id="keys">⌨ 十字キー: 矢印 / A: X / B: Z / START: Enter / SELECT: Shift &nbsp;·&nbsp; 🎮 ゲームパッド対応</div>
-
-<div id="touchpad">
-  <div id="dpad">
-    <div></div><div class="dbtn" data-btn="4">▲</div><div></div>
-    <div class="dbtn" data-btn="2">◀</div><div></div><div class="dbtn" data-btn="1">▶</div>
-    <div></div><div class="dbtn" data-btn="8">▼</div><div></div>
+<div id="app">
+  <div id="toolbar">
+    <label class="btn"><span>ROMを開く</span><input type="file" id="rom-input" accept=".gb,.gbc,application/octet-stream"></label>
+    <button id="btn-url">URL</button>
+    <button id="btn-reset">リセット</button>
+    <button id="btn-mute">🔊</button>
+    <button id="btn-full">⛶</button>
+    <span id="status">.gb / .gbc ファイルを選択してください</span>
+    <a class="ext-link" href="https://x.com/GOROman" target="_blank" rel="noopener" title="X (@GOROman)">𝕏</a>
+    <a class="ext-link" href="https://github.com/GOROman/claude-gb-emu" target="_blank" rel="noopener" title="GitHub"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
   </div>
-  <div>
-    <div id="abgroup">
-      <div class="abtn" data-btn="32">B</div>
-      <div class="abtn" data-btn="16">A</div>
-    </div>
-    <div id="ssgroup">
-      <div class="sbtn" data-btn="64">SELECT</div>
-      <div class="sbtn" data-btn="128">START</div>
-    </div>
+  <div id="url-row">
+    <input type="text" id="url-input" placeholder="https://example.com/game.gbc (CORS許可が必要)" inputmode="url">
+    <button id="btn-url-load">ロード</button>
+  </div>
+  <div id="screen-wrap">
+    <canvas id="screen" width="160" height="144"></canvas>
+    <div id="drop-hint">.gb / .gbc ファイルをドロップ<br>または「ROMを開く」</div>
+  </div>
+  <div id="keys-hint">⌨ 十字キー: 矢印 / A: X / B: Z / START: Enter / SELECT: Shift / R: リセット / F: フルスクリーン ・ 🎮 ゲームパッド対応</div>
+  <div id="pad">
+    <div class="pbtn" id="btn-up" data-btn="4">▲</div>
+    <div class="pbtn" id="btn-down" data-btn="8">▼</div>
+    <div class="pbtn" id="btn-left" data-btn="2">◀</div>
+    <div class="pbtn" id="btn-right" data-btn="1">▶</div>
+    <div class="pbtn" id="btn-b" data-btn="32">B</div>
+    <div class="pbtn" id="btn-a" data-btn="16">A</div>
+    <div class="pbtn" id="btn-vselect" data-btn="64">SELECT</div>
+    <div class="pbtn" id="btn-vstart" data-btn="128">START</div>
   </div>
 </div>
-
-<script>window.GB_VER='1787532466';</script>
-<script src="gbc.js?v=1787532466"></script>
-<script src="main.js?v=1787532466"></script>
+<script>window.GB_VER='1787533825';</script>
+<script src="gbc.js?v=1787533825"></script>
+<script src="main.js?v=1787533825"></script>
 </body>
 </html>
