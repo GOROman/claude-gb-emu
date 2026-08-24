@@ -196,13 +196,16 @@ void APU::mixSample() {
     R *= ((nr50 & 7) + 1) / 8.f;
     L *= 0.22f;
     R *= 0.22f;
-    // Chromatic FM expansion: YM2151 + ADPCM mixed in, GB APU gated by FF2B
+    // Chromatic FM expansion: YM2151 + ADPCM mixed in, GB APU gated by FF2B.
+    // Makeup gains bring the expansion up to GB APU loudness: the RTL-faithful
+    // (x*$80)>>10 scaling tops out at 0.125 FS, well below the APU channels.
+    const float FM_GAIN = 4.0f, ADPCM_GAIN = 2.0f;
     ChromaticFM& fm = gb->fm;
     if (fm.enabled) {
         fm.generateSample(sampleRate);
         if (!(fm.audioControl & 0x02)) { L = 0; R = 0; }   // GB APU disabled
-        if (fm.audioControl & 0x01) { L += fm.ymL; R += fm.ymR; }
-        if (fm.audioControl & 0x04) { L += fm.adpcmOut * 0.5f; R += fm.adpcmOut * 0.5f; }
+        if (fm.audioControl & 0x01) { L += fm.ymL * FM_GAIN; R += fm.ymR * FM_GAIN; }
+        if (fm.audioControl & 0x04) { L += fm.adpcmOut * ADPCM_GAIN; R += fm.adpcmOut * ADPCM_GAIN; }
     }
     sampleBuf[sampleCount * 2] = L;
     sampleBuf[sampleCount * 2 + 1] = R;
