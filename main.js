@@ -26,7 +26,12 @@ createGbModule().then((m) => {
 // ---------------------------------------------------------------- audio
 async function initAudio() {
   if (audioCtx) { audioCtx.resume(); return; }
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+  const AC = window.AudioContext || window.webkitAudioContext;
+  try { audioCtx = new AC({ sampleRate: 44100 }); }
+  catch (e) { audioCtx = new AC(); }        // some browsers reject the sampleRate option
+  // resume synchronously inside the user gesture (required on iOS) —
+  // everything after the first await runs outside the gesture call stack
+  audioCtx.resume();
   Module && Module._gb_init(audioCtx.sampleRate);
   try {
     await audioCtx.audioWorklet.addModule('audio-worklet.js?v=' + window.GB_VER);
@@ -57,10 +62,19 @@ async function initAudio() {
   audioCtx.resume();
 }
 
-// audio can only start from a user gesture — arm it on the first one
-function armAudio() { initAudio(); }
-window.addEventListener('pointerdown', armAudio, { once: true });
-window.addEventListener('keydown', armAudio, { once: true });
+// audio can only start from a user gesture — arm on the first one, and keep
+// resuming on later gestures in case the context got suspended (iOS does this
+// on background/incoming calls, and a failed first resume needs a retry)
+function armAudio() {
+  if (!audioCtx) { initAudio(); return; }
+  if (audioCtx.state !== 'running') audioCtx.resume();
+}
+window.addEventListener('pointerdown', armAudio);
+window.addEventListener('touchstart', armAudio, { passive: true });
+window.addEventListener('keydown', armAudio);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && audioCtx && audioCtx.state !== 'running') audioCtx.resume();
+});
 
 function pushAudio() {
   if (!Module) return;
